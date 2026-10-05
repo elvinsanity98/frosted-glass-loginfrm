@@ -1,0 +1,995 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Sign In</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* palette */
+  --ink: #050403;          /* page black, warm */
+  --bone: #F4EFE6;         /* primary text */
+  --label: #E6DFD3;        /* field labels */
+  --muted: #A8A194;        /* secondary text */
+  --faint: #958E82;        /* placeholders, icons */
+  --gold: #FFD23F;         /* accent + focus */
+  --on-gold: #1C1503;      /* text on the gold button */
+  --coral: #FF9580;        /* errors */
+  --field: rgba(0, 0, 0, .32);
+  --field-line: rgba(255, 255, 255, .09);
+  /* type */
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --text: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+
+  color-scheme: dark;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--ink);
+}
+html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+*, *::before, *::after { box-sizing: inherit; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  min-height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+  padding: 40px 16px;
+  background: var(--ink);
+  color: var(--bone);
+  font-family: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.backdrop { position: fixed; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+.defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* ───────── card shell ───────── */
+.auth {
+  --c0: 64px;            /* resting corner cut; JS reads this */
+  --pad: 32px;
+  position: relative;
+  width: min(440px, 100%);
+  scroll-margin-top: 16px;
+}
+.auth__glass {
+  position: absolute; inset: 0; z-index: 0;
+  border-radius: 20px;   /* fallback until JS draws the cut corners */
+  background:
+    linear-gradient(160deg, rgba(255,255,255,.09) 0%, rgba(255,255,255,.03) 34%, rgba(255,255,255,.015) 62%, rgba(255,200,110,.05) 100%),
+    rgba(10, 8, 6, .42);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+}
+.auth__edge { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.auth__body { position: relative; z-index: 2; padding: 34px var(--pad) 36px; }
+
+/* glass shards that live in the cut corners */
+.shard { position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none; transform-origin: 50% 50%; will-change: transform; }
+.shard__glass {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.26), rgba(255,255,255,.08) 52%, rgba(255,214,140,.16)),
+    rgba(22, 18, 13, .40);
+  -webkit-backdrop-filter: blur(8px) saturate(160%) brightness(1.15);
+  backdrop-filter: blur(8px) saturate(160%) brightness(1.15);
+}
+.shard__edge { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.seam, .glint { position: absolute; pointer-events: none; opacity: 0; }
+.seam {
+  inset: 2.5px;
+  background: linear-gradient(135deg, transparent 48.6%, rgba(255, 214, 110, .95) 50%, transparent 51.4%);
+  filter: drop-shadow(0 0 4px rgba(255, 190, 60, .9));
+  transition: opacity .5s ease .15s;
+}
+.auth[data-mode="done"] .seam { opacity: 1; }
+.glint {
+  inset: -45%;
+  background:
+    linear-gradient(135deg, transparent 47.5%, rgba(255, 236, 170, .95) 50%, transparent 52.5%),
+    radial-gradient(closest-side, rgba(255, 196, 64, .55), rgba(255, 170, 40, .16) 55%, transparent);
+  -webkit-mask-image: radial-gradient(closest-side, #000 45%, transparent);
+  mask-image: radial-gradient(closest-side, #000 45%, transparent);
+}
+
+/* ───────── content ───────── */
+.panel__head { padding-left: calc(var(--c0) - var(--pad) + 6px); }
+.title {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 31px;
+  line-height: 1.08;
+  letter-spacing: -0.018em;
+  color: var(--bone);
+  text-wrap: balance;
+}
+.title:focus { outline: none; }
+.accent { color: var(--gold); }
+.lede { margin: 8px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--muted); text-wrap: balance; }
+
+.field { margin-top: 18px; }
+.panel__head + .field { margin-top: 26px; }
+.field > label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--label); }
+.control { position: relative; display: flex; align-items: center; }
+.control input {
+  width: 100%; height: 46px;
+  padding: 0 14px 0 42px;
+  border: 1px solid var(--field-line);
+  border-radius: 10px;
+  background: var(--field);
+  color: var(--bone);
+  font: 500 15px/1.2 var(--text);
+  transition: border-color .2s, box-shadow .2s, background-color .2s;
+}
+.control input.has-reveal { padding-right: 40px; }
+.control input::placeholder { color: var(--faint); opacity: 1; }
+.control input:hover { border-color: rgba(255,255,255,.16); }
+.control input:focus { outline: none; border-color: var(--gold); background: rgba(0,0,0,.42); box-shadow: 0 0 0 3px rgba(255, 210, 63, .16); }
+.control input:-webkit-autofill {
+  -webkit-text-fill-color: var(--bone);
+  -webkit-box-shadow: 0 0 0 40px #16120d inset;
+  caret-color: var(--bone);
+}
+.control__icon { position: absolute; left: 14px; width: 18px; height: 18px; color: var(--faint); pointer-events: none; transition: color .2s; }
+.control:focus-within .control__icon { color: var(--gold); }
+.reveal {
+  position: absolute; right: 5px;
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 8px;
+  background: transparent; color: var(--faint);
+  cursor: pointer; transition: color .2s;
+}
+.reveal:hover { color: var(--bone); }
+.reveal:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.reveal svg { width: 18px; height: 18px; }
+.reveal .i-hide, .reveal[aria-pressed="true"] .i-show { display: none; }
+.reveal[aria-pressed="true"] .i-hide { display: block; }
+
+.field.is-invalid input { border-color: rgba(255, 149, 128, .7); }
+.field.is-invalid input:focus { border-color: var(--coral); box-shadow: 0 0 0 3px rgba(255, 149, 128, .16); }
+.field.is-invalid .control__icon { color: var(--coral); }
+.field__error { margin: 7px 0 0; font-size: 12.5px; line-height: 1.4; color: var(--coral); }
+
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pair > .field { min-width: 0; }
+
+.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
+
+.check { position: relative; display: inline-flex; align-items: center; gap: 10px; padding: 8px 0; margin: -8px 0; font-size: 13.5px; color: var(--muted); cursor: pointer; user-select: none; }
+.check input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; }
+.check__box {
+  flex: none; width: 18px; height: 18px;
+  display: grid; place-items: center;
+  border: 1.5px solid rgba(255,255,255,.28); border-radius: 5px;
+  background: rgba(0,0,0,.25);
+  transition: background-color .15s, border-color .15s;
+}
+.check__box svg { width: 12px; height: 12px; color: var(--on-gold); opacity: 0; transform: scale(.6); transition: opacity .15s, transform .15s; }
+.check input:checked + .check__box { background: var(--gold); border-color: var(--gold); }
+.check input:checked + .check__box svg { opacity: 1; transform: none; }
+.check input:focus-visible + .check__box { outline: 2px solid var(--gold); outline-offset: 2px; }
+.check-field { margin-top: 16px; }
+.check-field.is-invalid .check__box { border-color: var(--coral); }
+
+.linkish {
+  padding: 10px 4px; margin: -10px -4px;
+  border: 0; background: none;
+  font: inherit; font-weight: 600; color: var(--muted);
+  cursor: pointer; transition: color .2s;
+}
+.linkish:hover { color: var(--bone); }
+.linkish--gold { font-weight: 700; color: var(--gold); text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+.linkish--gold:hover { color: #FFE27A; }
+.linkish:focus-visible { outline: 2px solid var(--gold); outline-offset: 0; border-radius: 6px; }
+.row .linkish { font-size: 13.5px; }
+
+.btn {
+  width: 100%; height: 48px; margin-top: 20px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  border: 0; border-radius: 10px;
+  background: linear-gradient(180deg, #FFE45C 0%, #FFD12E 55%, #F7BE12 100%);
+  color: var(--on-gold);
+  font: 700 15px/1 var(--text);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.55),
+    inset 0 -1px 0 rgba(140, 90, 0, .35),
+    0 10px 28px -10px rgba(255, 190, 20, .7),
+    0 2px 6px rgba(0,0,0,.35);
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .25s ease;
+}
+.btn:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,.6), inset 0 -1px 0 rgba(140,90,0,.35), 0 14px 34px -10px rgba(255,190,20,.85), 0 2px 6px rgba(0,0,0,.35); }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: 2px solid var(--bone); outline-offset: 3px; }
+.btn svg { width: 17px; height: 17px; }
+.btn__arrow { transition: transform .2s ease; }
+.btn:hover .btn__arrow { transform: translateX(3px); }
+.btn .spinner { display: none; }
+.btn[aria-busy="true"] { cursor: progress; }
+.btn[aria-busy="true"] .btn__arrow { display: none; }
+.btn[aria-busy="true"] .spinner { display: block; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.divider { display: flex; align-items: center; gap: 14px; margin: 22px 0 16px; font-size: 12.5px; color: var(--faint); }
+.divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.14)); }
+.divider::after { background: linear-gradient(90deg, rgba(255,255,255,.14), transparent); }
+
+.socials { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.social {
+  height: 46px;
+  border: 1px solid var(--field-line); border-radius: 10px;
+  background: rgba(255,255,255,.035);
+  color: var(--bone);
+  font: 600 14px/1 var(--text);
+  cursor: pointer; transition: background-color .2s, border-color .2s;
+}
+.social:hover { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.16); }
+.social:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.status { margin: 10px 0 0; font-size: 12.5px; color: var(--muted); text-align: center; }
+.status:empty { margin: 0; }
+
+.foot { margin: 22px 0 0; font-size: 13.5px; color: var(--muted); text-align: center; }
+
+/* success panel */
+.panel--done { text-align: center; padding-top: 2px; }
+.emblem-slot { margin: 0 auto 22px; }
+.panel--done .lede { max-width: 30ch; margin-inline: auto; overflow-wrap: anywhere; }
+.btn-ghost {
+  height: 46px; margin-top: 22px; padding: 0 22px;
+  border: 1px solid rgba(255,255,255,.14); border-radius: 10px;
+  background: rgba(255,255,255,.04);
+  color: var(--bone); font: 600 14px/1 var(--text);
+  cursor: pointer; transition: background-color .2s, border-color .2s;
+}
+.btn-ghost:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.22); }
+.btn-ghost:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+@media (max-width: 420px) {
+  body { padding: 24px 16px; }
+  .auth { --c0: 54px; --pad: 22px; }
+  .title { font-size: 27px; }
+}
+@media (max-width: 350px) {
+  .pair { grid-template-columns: 1fr; gap: 0; }
+}
+@media (pointer: coarse) {
+  .control input { font-size: 16px; }   /* stops iOS from zooming on focus */
+}
+</style>
+</head>
+<body>
+<svg class="backdrop" viewBox="0 0 1440 1024" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+ <defs>
+
+  <radialGradient id="glowA" cx="1110" cy="570" r="560" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#D0700F" stop-opacity=".58"/>
+    <stop offset=".45" stop-color="#5E2C05" stop-opacity=".28"/>
+    <stop offset="1" stop-color="#000" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="glowB" cx="380" cy="140" r="460" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#A2580D" stop-opacity=".4"/>
+    <stop offset="1" stop-color="#000" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="glowC" cx="760" cy="1010" r="420" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#7A3E0A" stop-opacity=".32"/>
+    <stop offset="1" stop-color="#000" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="gold" x1="-160" y1="0" x2="1620" y2="0" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#C46A10" stop-opacity="0"/>
+    <stop offset=".16" stop-color="#F0A030" stop-opacity=".8"/>
+    <stop offset=".44" stop-color="#FFE0A0"/>
+    <stop offset=".72" stop-color="#F4A42E" stop-opacity=".9"/>
+    <stop offset="1" stop-color="#A9570B" stop-opacity="0"/>
+  </linearGradient>
+  <linearGradient id="goldLow" x1="-200" y1="0" x2="1660" y2="0" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#B55E0C" stop-opacity="0"/>
+    <stop offset=".34" stop-color="#E8952A" stop-opacity=".75"/>
+    <stop offset=".62" stop-color="#FFD58A" stop-opacity=".95"/>
+    <stop offset="1" stop-color="#B55E0C" stop-opacity="0"/>
+  </linearGradient>
+  <linearGradient id="cross" x1="90" y1="1130" x2="1360" y2="-90" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#E39A34" stop-opacity="0"/>
+    <stop offset=".35" stop-color="#F2B04A" stop-opacity=".55"/>
+    <stop offset=".55" stop-color="#FFE3A6" stop-opacity=".9"/>
+    <stop offset=".8" stop-color="#E39A34" stop-opacity=".3"/>
+    <stop offset="1" stop-color="#E39A34" stop-opacity="0"/>
+  </linearGradient>
+  <linearGradient id="silver" x1="0" y1="0" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#9A9AA0" stop-opacity="0"/>
+    <stop offset=".3" stop-color="#CFCFD4" stop-opacity=".5"/>
+    <stop offset=".7" stop-color="#8E8E94" stop-opacity=".22"/>
+    <stop offset="1" stop-color="#8E8E94" stop-opacity="0"/>
+  </linearGradient>
+  <linearGradient id="band" x1="0" y1="0" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#0A0806"/>
+    <stop offset=".5" stop-color="#18110A"/>
+    <stop offset="1" stop-color="#090705"/>
+  </linearGradient>
+  <radialGradient id="ringA" cx="-170" cy="1270" r="608" gradientUnits="userSpaceOnUse">
+    <stop offset=".842" stop-color="#060606"/>
+    <stop offset=".87" stop-color="#1E1E21"/>
+    <stop offset=".905" stop-color="#4A4A50"/>
+    <stop offset=".93" stop-color="#202023"/>
+    <stop offset=".985" stop-color="#0A0A0B"/>
+    <stop offset="1" stop-color="#5C5C62"/>
+  </radialGradient>
+  <radialGradient id="ringB" cx="-170" cy="1270" r="737" gradientUnits="userSpaceOnUse">
+    <stop offset=".913" stop-color="#070707"/>
+    <stop offset=".94" stop-color="#2B2B2F"/>
+    <stop offset=".965" stop-color="#141416"/>
+    <stop offset="1" stop-color="#4E4E54"/>
+  </radialGradient>
+  <radialGradient id="vig" cx="720" cy="512" r="900" gradientUnits="userSpaceOnUse">
+    <stop offset=".45" stop-color="#000" stop-opacity="0"/>
+    <stop offset="1" stop-color="#000" stop-opacity=".6"/>
+  </radialGradient>
+  <filter id="b6" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6"/></filter>
+  <filter id="b18" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="18"/></filter>
+  <path id="s1" d="M-160 170 C 180 60, 430 230, 720 330 S 1210 470, 1620 720"/>
+  <path id="s2" d="M-200 620 C 140 480, 520 600, 840 760 S 1280 930, 1640 880"/>
+  <path id="s3" d="M520 -150 C 760 110, 1060 180, 1640 50"/>
+  <path id="s5" d="M200 1170 C 540 940, 920 980, 1190 1020 S 1500 1100, 1660 1080"/>
+  <path id="s6" d="M90 1130 C 470 790, 860 450, 1360 -90"/>
+ </defs>
+ <rect width="1440" height="1024" fill="#050403"/>
+ <rect width="1440" height="1024" fill="url(#glowA)"/>
+ <rect width="1440" height="1024" fill="url(#glowB)"/>
+ <rect width="1440" height="1024" fill="url(#glowC)"/>
+ <g fill="none">
+  
+  <use href="#s3" stroke="url(#band)" stroke-width="150"/>
+  <use href="#s3" transform="translate(0,-71.2)" stroke="url(#gold)" stroke-width="12.0" opacity="0.45" filter="url(#b6)"/>
+  <use href="#s3" transform="translate(0,-75.0)" stroke="url(#gold)" stroke-width="1.65" opacity="0.95"/>
+  <use href="#s3" transform="translate(0,-46.5)" stroke="url(#gold)" stroke-width="0.9" opacity="0.4"/>
+  <use href="#s3" transform="translate(0,72.0)" stroke="url(#silver)" stroke-width="1.35" opacity="0.8"/>
+  <use href="#s6" stroke="url(#cross)" stroke-width="10" opacity="0.35" filter="url(#b6)"/>
+  <use href="#s6" stroke="url(#cross)" stroke-width="1.2" opacity="0.8"/>
+  <use href="#s6" transform="translate(0,14)" stroke="url(#cross)" stroke-width="0.8" opacity="0.45"/>
+  <use href="#s1" stroke="url(#band)" stroke-width="200"/>
+  <use href="#s1" transform="translate(0,5.0)" stroke="#3A230C" stroke-width="110.0" opacity="0.55" filter="url(#b18)"/>
+  <use href="#s1" transform="translate(0,-35.0)" stroke="#E08A1E" stroke-width="44.0" opacity="0.3" filter="url(#b18)"/>
+  <use href="#s1" transform="translate(0,-92.0)" stroke="url(#gold)" stroke-width="20.0" opacity="0.55" filter="url(#b6)"/>
+  <use href="#s1" transform="translate(0,-95.0)" stroke="url(#gold)" stroke-width="2.4" opacity="1"/>
+  <use href="#s1" transform="translate(0,-70.0)" stroke="url(#gold)" stroke-width="1.2" opacity="0.55"/>
+  <use href="#s1" transform="translate(0,-52.0)" stroke="url(#gold)" stroke-width="1.0" opacity="0.35"/>
+  <use href="#s1" transform="translate(0,-18.0)" stroke="url(#gold)" stroke-width="1.4" opacity="0.55"/>
+  <use href="#s1" transform="translate(0,22.0)" stroke="url(#gold)" stroke-width="1.0" opacity="0.38"/>
+  <use href="#s1" transform="translate(0,55.0)" stroke="url(#gold)" stroke-width="1.2" opacity="0.45"/>
+  <use href="#s1" transform="translate(0,93.0)" stroke="url(#gold)" stroke-width="16.0" opacity="0.38" filter="url(#b6)"/>
+  <use href="#s1" transform="translate(0,95.0)" stroke="url(#gold)" stroke-width="1.8" opacity="0.85"/>
+  <path d="M-160 170 C 180 60, 430 230, 720 330 S 1210 470, 1620 720" transform="translate(0,-95)" pathLength="1000" stroke="#FFF4D6" stroke-width="3.2" stroke-dasharray="160 2000" stroke-dashoffset="-420" filter="url(#b6)"/><!--#s1-->
+  <path d="M-160 170 C 180 60, 430 230, 720 330 S 1210 470, 1620 720" transform="translate(0,-95)" pathLength="1000" stroke="#FFF9EA" stroke-width="1.4" stroke-dasharray="110 2000" stroke-dashoffset="-445"/><!--#s1-->
+  <use href="#s2" stroke="url(#band)" stroke-width="250"/>
+  <use href="#s2" transform="translate(0,-31.2)" stroke="#2A2420" stroke-width="75.0" opacity="0.5" filter="url(#b18)"/>
+  <use href="#s2" transform="translate(0,-56.2)" stroke="#D9D9DE" stroke-width="20.0" opacity="0.06" filter="url(#b6)"/>
+  <use href="#s2" transform="translate(0,-121.2)" stroke="url(#goldLow)" stroke-width="15.0" opacity="0.5" filter="url(#b6)"/>
+  <use href="#s2" transform="translate(0,-122.5)" stroke="url(#goldLow)" stroke-width="2.0" opacity="1"/>
+  <use href="#s2" transform="translate(0,-93.8)" stroke="url(#goldLow)" stroke-width="1.0" opacity="0.5"/>
+  <use href="#s2" transform="translate(0,-37.5)" stroke="url(#silver)" stroke-width="1.25" opacity="0.55"/>
+  <use href="#s2" transform="translate(0,118.8)" stroke="url(#silver)" stroke-width="1.5" opacity="0.75"/>
+
+  <circle cx="-170" cy="1270" r="560" stroke="url(#ringA)" stroke-width="96"/>
+  <circle cx="-170" cy="1270" r="705" stroke="url(#ringB)" stroke-width="64"/>
+  <circle cx="-170" cy="1270" r="740" stroke="#E7B266" stroke-width="1.1" opacity=".32"/>
+
+  <use href="#s5" stroke="url(#band)" stroke-width="170"/>
+  <use href="#s5" transform="translate(0,-80.8)" stroke="url(#goldLow)" stroke-width="11.9" opacity="0.45" filter="url(#b6)"/>
+  <use href="#s5" transform="translate(0,-81.6)" stroke="url(#goldLow)" stroke-width="1.7" opacity="0.95"/>
+  <use href="#s5" transform="translate(0,-56.1)" stroke="url(#goldLow)" stroke-width="1.02" opacity="0.4"/>
+ </g>
+ <rect width="1440" height="1024" fill="url(#vig)"/>
+</svg>
+
+<svg class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="edgeGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".36"/>
+      <stop offset=".3" stop-color="#fff" stop-opacity=".12"/>
+      <stop offset=".7" stop-color="#fff" stop-opacity=".06"/>
+      <stop offset="1" stop-color="#FFD58A" stop-opacity=".32"/>
+    </linearGradient>
+    <linearGradient id="rimGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".22"/>
+      <stop offset=".06" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="shardGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".85"/>
+      <stop offset=".5" stop-color="#fff" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#FFD58A" stop-opacity=".7"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<main class="auth" id="auth" data-mode="signin">
+  <div class="auth__glass" aria-hidden="true"></div>
+  <svg class="auth__edge" aria-hidden="true" focusable="false">
+    <path class="edge-line" fill="none" stroke="url(#edgeGrad)" stroke-width="1"/>
+    <path class="edge-rim" fill="none" stroke="url(#rimGrad)" stroke-width="2"/>
+  </svg>
+
+  <div class="auth__body" id="authBody">
+
+    <!-- Sign in -->
+    <form class="panel" data-panel="signin" id="form-signin" novalidate aria-labelledby="signin-title">
+      <header class="panel__head">
+        <h1 class="title" id="signin-title" tabindex="-1">Welcome <span class="accent">Back</span></h1>
+        <p class="lede">Sign in with your email and password.</p>
+      </header>
+
+      <div class="field">
+        <label for="si-email">Email Address</label>
+        <div class="control">
+          <svg class="control__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7.5 8.5 6 8.5-6"/></svg>
+          <input id="si-email" name="email" type="email" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="name@domain.com" data-rule="email" aria-describedby="si-email-err">
+        </div>
+        <p class="field__error" id="si-email-err" hidden></p>
+      </div>
+
+      <div class="field">
+        <label for="si-password">Password</label>
+        <div class="control">
+          <svg class="control__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>
+          <input id="si-password" name="password" type="password" class="has-reveal" autocomplete="current-password" placeholder="••••••••••" data-rule="password" aria-describedby="si-password-err">
+          <button type="button" class="reveal" aria-label="Show password" aria-pressed="false" aria-controls="si-password">
+            <svg class="i-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="i-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 3 18 18M10.6 6.1c.5-.1.9-.1 1.4-.1 6 0 9.5 6 9.5 6a16.6 16.6 0 0 1-3 3.6M6.6 6.6C3.9 8.3 2.5 12 2.5 12s3.5 6.5 9.5 6.5c1.9 0 3.5-.6 4.9-1.5M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+          </button>
+        </div>
+        <p class="field__error" id="si-password-err" hidden></p>
+      </div>
+
+      <div class="row">
+        <label class="check">
+          <input type="checkbox" name="remember" checked>
+          <span class="check__box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.2 4L19 7"/></svg></span>
+          Remember me
+        </label>
+        <button type="button" class="linkish" data-go="reset">Forgot password?</button>
+      </div>
+
+      <button type="submit" class="btn">
+        <span class="btn__label">Sign In</span>
+        <svg class="btn__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        <svg class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/></svg>
+      </button>
+
+      <div class="divider">or continue with</div>
+      <div class="socials">
+        <button type="button" class="social" data-provider="Google">Google</button>
+        <button type="button" class="social" data-provider="Apple">Apple</button>
+      </div>
+      <p class="status" role="status" aria-live="polite"></p>
+
+      <p class="foot">Don’t have an account? <button type="button" class="linkish linkish--gold" data-go="signup">Sign Up</button></p>
+    </form>
+
+    <!-- Create account -->
+    <form class="panel" data-panel="signup" id="form-signup" novalidate aria-labelledby="signup-title" hidden>
+      <header class="panel__head">
+        <h1 class="title" id="signup-title" tabindex="-1">Create <span class="accent">Account</span></h1>
+        <p class="lede">Set up your account in under a minute.</p>
+      </header>
+
+      <div class="field">
+        <label for="su-name">Full Name</label>
+        <div class="control">
+          <svg class="control__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/></svg>
+          <input id="su-name" name="name" type="text" autocomplete="name" placeholder="Jamie Santos" data-rule="name" aria-describedby="su-name-err">
+        </div>
+        <p class="field__error" id="su-name-err" hidden></p>
+      </div>
+
+      <div class="field">
+        <label for="su-email">Email Address</label>
+        <div class="control">
+          <svg class="control__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7.5 8.5 6 8.5-6"/></svg>
+          <input id="su-email" name="email" type="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="name@domain.com" data-rule="email" aria-describedby="su-email-err">
+        </div>
+        <p class="field__error" id="su-email-err" hidden></p>
+      </div>
+
+      <div class="pair">
+        <div class="field">
+          <label for="su-password">Password</label>
+          <div class="control">
+            <svg class="control__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>
+            <input id="su-password" name="password" type="password" class="has-reveal" autocomplete="new-password" placeholder="••••••" data-rule="newPassword" aria-describedby="su-password-err">
+            <button type="button" class="reveal" aria-label="Show password" aria-pressed="false" aria-controls="su-password">
+              <svg class="i-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="i-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 3 18 18M10.6 6.1c.5-.1.9-.1 1.4-.1 6 0 9.5 6 9.5 6a16.6 16.6 0 0 1-3 3.6M6.6 6.6C3.9 8.3 2.5 12 2.5 12s3.5 6.5 9.5 6.5c1.9 0 3.5-.6 4.9-1.5M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+            </button>
+          </div>
+          <p class="field__error" id="su-password-err" hidden></p>
+        </div>
+        <div class="field">
+          <label for="su-confirm">Confirm Password</label>
+          <div class="control">
+            <svg class="control__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>
+            <input id="su-confirm" name="confirm" type="password" class="has-reveal" autocomplete="new-password" placeholder="••••••" data-rule="confirm" aria-describedby="su-confirm-err">
+            <button type="button" class="reveal" aria-label="Show password" aria-pressed="false" aria-controls="su-confirm">
+              <svg class="i-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="i-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 3 18 18M10.6 6.1c.5-.1.9-.1 1.4-.1 6 0 9.5 6 9.5 6a16.6 16.6 0 0 1-3 3.6M6.6 6.6C3.9 8.3 2.5 12 2.5 12s3.5 6.5 9.5 6.5c1.9 0 3.5-.6 4.9-1.5M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+            </button>
+          </div>
+          <p class="field__error" id="su-confirm-err" hidden></p>
+        </div>
+      </div>
+
+      <div class="check-field">
+        <label class="check">
+          <input type="checkbox" name="terms" data-rule="terms" aria-describedby="su-terms-err">
+          <span class="check__box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.2 4L19 7"/></svg></span>
+          I agree to the Terms &amp; Privacy Policy
+        </label>
+        <p class="field__error" id="su-terms-err" hidden></p>
+      </div>
+
+      <button type="submit" class="btn">
+        <span class="btn__label">Create Account</span>
+        <svg class="btn__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        <svg class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/></svg>
+      </button>
+
+      <div class="divider">or continue with</div>
+      <div class="socials">
+        <button type="button" class="social" data-provider="Google">Google</button>
+        <button type="button" class="social" data-provider="Apple">Apple</button>
+      </div>
+      <p class="status" role="status" aria-live="polite"></p>
+
+      <p class="foot">Already have an account? <button type="button" class="linkish linkish--gold" data-go="signin">Sign In</button></p>
+    </form>
+
+    <!-- Reset password -->
+    <form class="panel" data-panel="reset" id="form-reset" novalidate aria-labelledby="reset-title" hidden>
+      <header class="panel__head">
+        <h1 class="title" id="reset-title" tabindex="-1">Reset <span class="accent">Password</span></h1>
+        <p class="lede">Enter your email and we’ll send you a link to set a new one.</p>
+      </header>
+
+      <div class="field">
+        <label for="rs-email">Email Address</label>
+        <div class="control">
+          <svg class="control__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7.5 8.5 6 8.5-6"/></svg>
+          <input id="rs-email" name="email" type="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="name@domain.com" data-rule="email" aria-describedby="rs-email-err">
+        </div>
+        <p class="field__error" id="rs-email-err" hidden></p>
+      </div>
+
+      <button type="submit" class="btn">
+        <span class="btn__label">Send Reset Link</span>
+        <svg class="btn__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        <svg class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/></svg>
+      </button>
+
+      <p class="foot">Remembered it? <button type="button" class="linkish linkish--gold" data-go="signin">Back to Sign In</button></p>
+    </form>
+
+    <!-- Success -->
+    <section class="panel panel--done" data-panel="done" aria-labelledby="done-title" hidden>
+      <div class="emblem-slot" aria-hidden="true"></div>
+      <h1 class="title" id="done-title" tabindex="-1"><span data-lead>Signed</span> <span class="accent" data-accent>In</span></h1>
+      <p class="lede" data-text></p>
+      <button type="button" class="btn-ghost" data-action>Sign Out</button>
+    </section>
+  </div>
+
+  <div class="shard shard--a" aria-hidden="true">
+    <div class="shard__glass"></div>
+    <svg class="shard__edge" focusable="false"><path fill="none" stroke="url(#shardGrad)" stroke-width="1.3"/></svg>
+    <div class="seam"></div>
+    <div class="glint"></div>
+  </div>
+  <div class="shard shard--b" aria-hidden="true">
+    <div class="shard__glass"></div>
+    <svg class="shard__edge" focusable="false"><path fill="none" stroke="url(#shardGrad)" stroke-width="1.3"/></svg>
+  </div>
+</main>
+
+<script>
+(() => {
+  const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+
+  const auth = $('#auth');
+  const body = $('#authBody');
+  const glass = $('.auth__glass');
+  const edgeLine = $('.auth__edge .edge-line');
+  const edgeRim = $('.auth__edge .edge-rim');
+  const shards = $$('.shard');
+  const glint = $('.glint');
+  const panels = Object.fromEntries($$('.panel').map(p => [p.dataset.panel, p]));
+  const forms = { signin: panels.signin, signup: panels.signup, reset: panels.reset };
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const finePointer = matchMedia('(pointer: fine)');
+
+  /* ───────── geometry ───────── */
+  const r2 = n => Math.round(n * 100) / 100;
+  const clamp01 = t => (t < 0 ? 0 : t > 1 ? 1 : t);
+  const seg = (t, a, b) => clamp01((t - a) / (b - a));
+  const easeInOut = t => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+  const easeOut = t => 1 - Math.pow(1 - t, 3);
+
+  // Polygon with rounded corners (cubic approximation of each arc).
+  function roundedPath(pts, radii) {
+    const n = pts.length;
+    let d = '';
+    for (let i = 0; i < n; i++) {
+      const [px, py] = pts[(i + n - 1) % n], [cx, cy] = pts[i], [nx, ny] = pts[(i + 1) % n];
+      const l1 = Math.hypot(px - cx, py - cy), l2 = Math.hypot(nx - cx, ny - cy);
+      const r = Math.min(radii[i], l1 / 2, l2 / 2);
+      const ax = cx + (px - cx) / l1 * r, ay = cy + (py - cy) / l1 * r;
+      const bx = cx + (nx - cx) / l2 * r, by = cy + (ny - cy) / l2 * r;
+      const k = .55;
+      d += `${i ? 'L' : 'M'}${r2(ax)} ${r2(ay)}C${r2(ax + (cx - ax) * k)} ${r2(ay + (cy - ay) * k)} ${r2(bx + (cx - bx) * k)} ${r2(by + (cy - by) * k)} ${r2(bx)} ${r2(by)}`;
+    }
+    return d + 'Z';
+  }
+  // Card: rectangle with the top-left and bottom-right corners cut at 45°.
+  const cardPath = (w, h, c, i = 0) =>
+    roundedPath([[c, i], [w - i, i], [w - i, h - c], [w - c, h - i], [i, h - i], [i, c]], [9, 20, 9, 9, 20, 9]);
+  // Shards: the two cut-off corners. Side by side they make a square split on its diagonal.
+  const shardPath = (s, which, i = 0) => {
+    const j = i * 2.414;
+    const pts = which === 0 ? [[i, i], [s - j, i], [i, s - j]] : [[s - i, s - i], [j, s - i], [s - i, j]];
+    return roundedPath(pts, [10, 5, 5]);
+  };
+
+  const state = {
+    mode: 'signin',
+    open: 0,               // 0 = corners filled by shards, 1 = corners opened wide
+    from: 'rest', to: 'rest', p: 0,   // shard travel between anchors
+    pulse: 1,              // "click" when the shards lock
+    slot: [0, 0],
+    busy: false,
+    loading: false,
+  };
+  let shardSize = 0;
+
+  function geometry() {
+    const w = auth.offsetWidth, h = auth.offsetHeight;
+    const c0 = parseFloat(getComputedStyle(auth).getPropertyValue('--c0')) || 64;
+    return { w, h, c0, s: c0 - 10, c: c0 + c0 * .55 * state.open };
+  }
+  function anchor(name, g) {
+    const { w, h, s } = g;
+    if (name === 'center') { const x = w / 2 - s / 2, y = h / 2 - s / 2; return [[x, y], [x, y]]; }
+    if (name === 'slot') return [state.slot, state.slot];
+    return [[0, 0], [w - s, h - s]];
+  }
+  function measureSlot() {
+    const slot = $('.emblem-slot', panels.done);
+    state.slot = [body.offsetLeft + slot.offsetLeft, body.offsetTop + slot.offsetTop];
+  }
+
+  function draw() {
+    const g = geometry();
+    const clip = `path('${cardPath(g.w, g.h, g.c)}')`;
+    glass.style.clipPath = clip;
+    glass.style.webkitClipPath = clip;
+    glass.style.borderRadius = '0';
+    const outline = cardPath(g.w, g.h, g.c, .5);
+    edgeLine.setAttribute('d', outline);
+    edgeRim.setAttribute('d', outline);
+
+    if (g.s !== shardSize) {
+      shardSize = g.s;
+      $('.emblem-slot', panels.done).style.cssText = `width:${g.s}px;height:${g.s}px`;
+      shards.forEach((el, k) => {
+        el.style.width = el.style.height = g.s + 'px';
+        const cp = `path('${shardPath(g.s, k)}')`;
+        const gl = $('.shard__glass', el);
+        gl.style.clipPath = cp;
+        gl.style.webkitClipPath = cp;
+        $('.shard__edge path', el).setAttribute('d', shardPath(g.s, k, .6));
+      });
+      if (state.mode === 'done') measureSlot();
+    }
+
+    const A = anchor(state.from, g), B = anchor(state.to, g);
+    shards.forEach((el, k) => {
+      const x = A[k][0] + (B[k][0] - A[k][0]) * state.p;
+      const y = A[k][1] + (B[k][1] - A[k][1]) * state.p;
+      el.style.transform = `translate3d(${r2(x)}px, ${r2(y)}px, 0) scale(${r2(state.pulse * 1000) / 1000})`;
+    });
+  }
+
+  function tween(duration, onFrame) {
+    return new Promise(resolve => {
+      const start = performance.now();
+      const tick = now => {
+        const t = Math.min(duration, now - start);
+        onFrame(t);
+        t < duration ? requestAnimationFrame(tick) : resolve();
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+  const lastActive = (segs, t) => segs.reduce((cur, s) => (t >= s.a ? s : cur), segs[0]);
+
+  function flashGlint() {
+    if (!glint.animate) return;
+    glint.animate(
+      [{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'scale(1)', offset: .2 }, { opacity: 0, transform: 'scale(1.5)' }],
+      { duration: 440, easing: 'ease-out' }
+    );
+  }
+  function setContent(o) {
+    body.style.opacity = o >= 1 ? '' : r2(o);
+    body.style.filter = o >= 1 ? '' : `blur(${r2((1 - o) * 8)}px)`;
+  }
+
+  /* ───────── the morph: shards fly in, lock, and fly back out ───────── */
+  async function morph(to) {
+    if (state.busy || to === state.mode || (state.loading && to !== 'done')) return;
+    state.busy = true;
+    body.inert = true;
+    const from = state.mode;
+    const fromDone = from === 'done', toDone = to === 'done';
+    const h0 = auth.offsetHeight;
+    let h1 = h0, swapped = false, glinted = false;
+    auth.style.height = h0 + 'px';
+
+    const swap = () => {
+      clearErrors(panels[from]);
+      panels[from].hidden = true;
+      panels[to].hidden = false;
+      auth.dataset.mode = to;
+      state.mode = to;
+      h1 = body.offsetHeight;
+      if (toDone) measureSlot();
+      swapped = true;
+    };
+
+    if (reduceMotion.matches) {
+      await tween(140, t => setContent(1 - t / 140));
+      swap();
+      auth.style.height = '';
+      state.from = state.to = toDone ? 'slot' : 'rest';
+      state.p = 1; state.open = toDone ? 1 : 0; state.pulse = 1;
+      draw();
+      await tween(180, t => setContent(t / 180));
+      return settle();
+    }
+
+    let T, shardSegs, openSegs, out = [0, 240], into, swapAt = 260, hSeg, lockAt = null;
+    if (!fromDone) {
+      shardSegs = [{ a: 80, b: 540, from: 'rest', to: 'center' },
+                   toDone ? { a: 700, b: 1040, from: 'center', to: 'slot' } : { a: 700, b: 1100, from: 'center', to: 'rest' }];
+      openSegs = [{ a: 100, b: 520, from: 0, to: 1 }].concat(toDone ? [] : [{ a: 720, b: 1100, from: 1, to: 0 }]);
+      hSeg = [260, 700];
+      lockAt = 540;
+      into = toDone ? [840, 1180] : [780, 1150];
+    } else {
+      shardSegs = [{ a: 220, b: 760, from: 'slot', to: 'rest' }];
+      openSegs = [{ a: 280, b: 760, from: 1, to: 0 }];
+      hSeg = [260, 640];
+      into = [600, 980];
+    }
+    T = into[1];
+
+    await tween(T, t => {
+      setContent(t < into[0] ? 1 - easeOut(seg(t, out[0], out[1])) : easeOut(seg(t, into[0], into[1])));
+      if (!swapped && t >= swapAt) swap();
+      if (swapped) auth.style.height = r2(h0 + (h1 - h0) * easeInOut(seg(t, hSeg[0], hSeg[1]))) + 'px';
+
+      const s = lastActive(shardSegs, t);
+      state.from = s.from; state.to = s.to; state.p = easeInOut(seg(t, s.a, s.b));
+      const o = lastActive(openSegs, t);
+      state.open = o.from + (o.to - o.from) * easeInOut(seg(t, o.a, o.b));
+      if (lockAt !== null) {
+        state.pulse = 1 - .07 * Math.sin(Math.PI * seg(t, lockAt, lockAt + 170));
+        if (!glinted && t >= lockAt) { glinted = true; flashGlint(); }
+      }
+      draw();
+    });
+    settle();
+  }
+
+  function settle() {
+    setContent(1);
+    auth.style.height = '';
+    state.pulse = 1;
+    if (state.mode === 'done') { state.from = state.to = 'slot'; measureSlot(); }
+    else { state.from = state.to = 'rest'; }
+    state.p = 1;
+    body.inert = false;
+    state.busy = false;
+    draw();
+    if (auth.getBoundingClientRect().top < 0) {
+      auth.scrollIntoView({ block: 'start', behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+    }
+    const panel = panels[state.mode];
+    const firstInput = $('input:not([type=checkbox])', panel);
+    if (firstInput && finePointer.matches) firstInput.focus({ preventScroll: true });
+    else $('.title', panel).focus({ preventScroll: true });
+  }
+
+  // Page-load reveal: the corner pieces start locked together, then split to their corners.
+  async function intro() {
+    if (reduceMotion.matches) {
+      state.from = state.to = 'rest'; state.p = 1; state.open = 0;
+      draw(); setContent(1);
+      return;
+    }
+    draw();
+    state.busy = true;
+    body.inert = true;
+    let glinted = false;
+    await tween(1080, t => {
+      if (!glinted && t >= 140) { glinted = true; flashGlint(); }
+      state.pulse = 1 - .07 * Math.sin(Math.PI * seg(t, 140, 310));
+      state.from = 'center'; state.to = 'rest'; state.p = easeInOut(seg(t, 380, 900));
+      state.open = 1 - easeInOut(seg(t, 400, 900));
+      setContent(easeOut(seg(t, 560, 1080)));
+      draw();
+    });
+    state.from = state.to = 'rest'; state.p = 1; state.open = 0; state.pulse = 1;
+    setContent(1);
+    body.inert = false;
+    state.busy = false;
+    draw();
+  }
+
+  /* ───────── validation ───────── */
+  const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  const rules = {
+    email: el => EMAIL.test(el.value.trim()) || 'Enter an email address like name@domain.com.',
+    password: el => el.value.length > 0 || 'Enter your password.',
+    name: el => el.value.trim().length >= 2 || 'Enter your full name.',
+    newPassword: el => el.value.length >= 8 || 'Use at least 8 characters.',
+    confirm: el => !el.value ? 'Re-enter your password.' : el.value === el.form.elements.password.value || 'Passwords don’t match.',
+    terms: el => el.checked || 'Accept the terms to create your account.',
+  };
+  function setError(el, msg) {
+    const field = el.closest('.field, .check-field');
+    const out = $('.field__error', field);
+    field.classList.toggle('is-invalid', !!msg);
+    if (msg) el.setAttribute('aria-invalid', 'true'); else el.removeAttribute('aria-invalid');
+    out.textContent = msg || '';
+    out.hidden = !msg;
+  }
+  function validate(form) {
+    let firstBad = null;
+    $$('[data-rule]', form).forEach(el => {
+      const res = rules[el.dataset.rule](el);
+      setError(el, res === true ? '' : res);
+      if (res !== true && !firstBad) firstBad = el;
+    });
+    if (firstBad) firstBad.focus();
+    return !firstBad;
+  }
+  function clearErrors(panel) {
+    $$('[data-rule]', panel).forEach(el => setError(el, ''));
+    $$('.status', panel).forEach(s => (s.textContent = ''));
+  }
+  Object.values(forms).forEach(form => {
+    const clear = e => { if (e.target.dataset.rule && e.target.hasAttribute('aria-invalid')) setError(e.target, ''); };
+    form.addEventListener('input', clear);
+    form.addEventListener('change', clear);
+  });
+
+  /* ───────── submitting ───────── */
+  // Stand-in for a real request. Replace with your own auth call (fetch to your API, Firebase, Supabase…).
+  const fakeRequest = () => new Promise(resolve => setTimeout(resolve, 1100));
+
+  function setLoading(btn, label) {
+    const text = $('.btn__label', btn);
+    if (label) { btn.dataset.label = text.textContent; text.textContent = label; }
+    else if (btn.dataset.label) text.textContent = btn.dataset.label;
+    btn.disabled = !!label;
+    btn.setAttribute('aria-busy', label ? 'true' : 'false');
+  }
+  async function submit(form, busyLabel, onSuccess) {
+    if (state.busy || !validate(form)) return;
+    const btn = $('.btn', form);
+    setLoading(btn, busyLabel);
+    state.loading = true;
+    try {
+      await fakeRequest();
+      const done = onSuccess();
+      state.loading = false;
+      await done;
+    } finally {
+      state.loading = false;
+      setLoading(btn, null);
+    }
+  }
+  function showDone({ lead, accent, text, action, next }) {
+    const p = panels.done;
+    $('[data-lead]', p).textContent = lead;
+    $('[data-accent]', p).textContent = accent;
+    $('[data-text]', p).textContent = text;
+    const btn = $('[data-action]', p);
+    btn.textContent = action;
+    btn.onclick = () => morph(next);
+    return morph('done');
+  }
+
+  const KEY = 'goldglass-login:email';
+  const remember = v => { try { v ? localStorage.setItem(KEY, v) : localStorage.removeItem(KEY); } catch (e) {} };
+  try {
+    const saved = localStorage.getItem(KEY);
+    if (saved) forms.signin.elements.email.value = saved;
+  } catch (e) {}
+
+  forms.signin.addEventListener('submit', e => {
+    e.preventDefault();
+    const f = forms.signin.elements;
+    submit(forms.signin, 'Signing In…', () => {
+      const email = f.email.value.trim();
+      remember(f.remember.checked ? email : null);
+      f.password.value = '';
+      return showDone({ lead: 'Signed', accent: 'In', text: `You’re signed in as ${email}.`, action: 'Sign Out', next: 'signin' });
+    });
+  });
+  forms.signup.addEventListener('submit', e => {
+    e.preventDefault();
+    const f = forms.signup.elements;
+    submit(forms.signup, 'Creating Account…', () => {
+      const email = f.email.value.trim();
+      forms.signin.elements.email.value = email;
+      forms.signup.reset();
+      return showDone({ lead: 'Account', accent: 'Created', text: `You’re signed in as ${email}.`, action: 'Sign Out', next: 'signin' });
+    });
+  });
+  forms.reset.addEventListener('submit', e => {
+    e.preventDefault();
+    submit(forms.reset, 'Sending Link…', () => {
+      const email = forms.reset.elements.email.value.trim();
+      return showDone({ lead: 'Check Your', accent: 'Inbox', text: `We sent a reset link to ${email}.`, action: 'Back to Sign In', next: 'signin' });
+    });
+  });
+
+  /* ───────── small interactions ───────── */
+  document.addEventListener('click', e => {
+    const go = e.target.closest('[data-go]');
+    if (!go) return;
+    if (go.dataset.go === 'reset') {
+      const typed = forms.signin.elements.email.value.trim();
+      if (typed && !forms.reset.elements.email.value) forms.reset.elements.email.value = typed;
+    }
+    morph(go.dataset.go);
+  });
+
+  $$('.reveal').forEach(btn => btn.addEventListener('click', () => {
+    const input = $('input', btn.parentElement);
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.setAttribute('aria-pressed', String(show));
+    btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  }));
+
+  $$('.social').forEach(btn => btn.addEventListener('click', () => {
+    const status = $('.status', btn.closest('.panel'));
+    status.textContent = `${btn.dataset.provider} sign-in isn’t connected yet.`;
+    clearTimeout(status._timer);
+    status._timer = setTimeout(() => (status.textContent = ''), 3500);
+  }));
+
+  new ResizeObserver(() => {
+    if (state.busy) return;
+    if (state.mode === 'done') measureSlot();
+    draw();
+  }).observe(auth);
+
+  /* ───────── start ───────── */
+  state.from = 'center'; state.to = 'rest'; state.p = 0; state.open = 1;
+  setContent(0);
+  draw();
+  const fontsReady = document.fonts ? document.fonts.ready : Promise.resolve();
+  Promise.race([fontsReady, new Promise(r => setTimeout(r, 700))]).then(intro);
+})();
+</script>
+</body>
+</html>
